@@ -1,0 +1,38 @@
+[package]
+name = "lidless"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "A menu-bar switch that keeps your Mac awake, even with the lid shut."
+
+[dependencies]
+block2 = "0.6"
+objc2 = "0.6"
+# Features are listed by hand so the binary links only the frameworks it uses.
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+    "std", "block2", "objc2-core-foundation",
+    "NSApplication", "NSBezierPath", "NSButton", "NSCell", "NSColor", "NSControl", "NSEvent",
+    "NSFontDescriptor", "NSGraphics", "NSImage", "NSMenu", "NSMenuItem", "NSResponder",
+    "NSRunningApplication", "NSStatusBar", "NSStatusBarButton", "NSStatusItem", "NSView",
+] }
+objc2-foundation = { version = "0.3", default-features = false, features = [
+    "std", "block2", "objc2-core-foundation",
+    "NSAppleEventDescriptor", "NSAppleScript", "NSBundle", "NSDictionary", "NSError", "NSGeometry",
+    "NSNotification", "NSPathUtilities", "NSProcessInfo", "NSString", "NSTimer", "NSUUID",
+    "NSUserDefaults",
+] }
+objc2-service-management = { version = "0.3", default-features = false, features = [
+    "std", "objc2", "objc2-foundation", "SMAppService",
+] }
+objc2-user-notifications = { version = "0.3", default-features = false, features = [
+    "std", "block2",
+    "UNNotificationContent", "UNNotificationRequest", "UNNotificationSound", "UNNotificationTrigger",
+    "UNUserNotificationCenter",
+] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

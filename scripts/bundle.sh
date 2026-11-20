@@ -1,0 +1,46 @@
+#!/bin/zsh
+# Build dist/Lidless.app for this Mac's architecture, signed ad hoc (local use only).
+# Usage: scripts/bundle.sh [--install]
+set -euo pipefail
+cd "${0:A:h}/.."
+VER=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+APP="dist/Lidless.app"
+rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+
+cargo build --release --locked
+cp target/release/lidless "$APP/Contents/MacOS/Lidless"
+
+ICONSET=$(mktemp -d)/Lidless.iconset; mkdir -p "$ICONSET"
+for s in 16 32 128 256 512; do
+  sips -z $s $s assets/icon-1024.png --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
+  sips -z $((s*2)) $((s*2)) assets/icon-1024.png --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
+done
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Lidless.icns"
+
+cat > "$APP/Contents/Info.plist" <<PL
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleName</key><string>Lidless</string>
+<key>CFBundleDisplayName</key><string>Lidless</string>
+<key>CFBundleIdentifier</key><string>local.lidless</string>
+<key>CFBundleExecutable</key><string>Lidless</string>
+<key>CFBundleIconFile</key><string>Lidless</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleShortVersionString</key><string>$VER</string>
+<key>CFBundleVersion</key><string>$VER</string>
+<key>LSMinimumSystemVersion</key><string>13.0</string>
+<key>LSUIElement</key><true/>
+<key>NSHumanReadableCopyright</key><string>© 2026 Alex McConnell. MIT licence.</string>
+</dict></plist>
+PL
+
+codesign --force --options runtime --sign - "$APP"
+codesign --verify --strict "$APP"
+echo "Built $APP ($VER)"
+
+if [[ "${1:-}" == "--install" ]]; then
+  pkill -x Lidless || true
+  rm -rf /Applications/Lidless.app && cp -R "$APP" /Applications/
+  open /Applications/Lidless.app
+fi
