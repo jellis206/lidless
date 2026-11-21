@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn only_plain_usernames_reach_sudoers() {
-        assert!(valid_user("sam"));
+        assert!(valid_user("jay"));
         assert!(valid_user("first.last-2_x"));
         for bad in ["", "a b", "a'b", "x\ny ALL=(ALL) NOPASSWD: ALL", "jäy", "a,b", "a=b"] {
             assert_eq!(install_script(bad, true), "/usr/bin/pmset -a disablesleep 1", "{bad:?}");
@@ -152,7 +152,7 @@ mod tests {
     /// `sh -n` parses without running anything, so this is safe outside root.
     #[test]
     fn install_script_is_valid_shell() {
-        for user in ["sam", "not a user"] {
+        for user in ["jay", "not a user"] {
             let checked = Command::new("/bin/sh").args(["-n", "-c", &install_script(user, true)]).status();
             assert!(checked.unwrap().success(), "{user:?}");
         }
@@ -160,10 +160,10 @@ mod tests {
 
     #[test]
     fn rule_allows_exactly_two_commands() {
-        let script = install_script("sam", false);
+        let script = install_script("jay", false);
         assert!(script.starts_with("/usr/bin/pmset -a disablesleep 0 && "));
         assert!(script.contains(
-            "'sam ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1'"
+            "'jay ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1'"
         ));
         // A rule that fails any step is deleted, never left behind or half-installed.
         assert!(script.ends_with(
