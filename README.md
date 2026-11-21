@@ -97,4 +97,4 @@ Or by hand: `sudo rm /etc/sudoers.d/lidless && sudo pmset -a disablesleep 0`
 
 ## Licence
 
-MIT. Original work © 2026 Alex McConnell.
+[MIT](LICENSE).
