@@ -64,7 +64,7 @@ The fade uses Apple's private DisplayServices framework, because macOS has no pu
 
 ## Versus the original
 
-This is a Rust port of [Alex McConnell's Lidless](https://github.com/alexiscodingbits/lidless). His idea, his icon, his MIT licence. What's different here:
+A Rust port of [Lidless](https://github.com/alexiscodingbits/lidless) by Alex McConnell. What's different here:
 
 | | |
 |---|---|
