@@ -48,17 +48,35 @@ Locked and still working. That's the whole point.
 
 One gap: between closing the lid and the screen turning off, the Mac is awake and not yet locked. Leaving it somewhere sketchy? Lock first, then close.
 
-## Under the hood
+## Security
 
-Small enough to read in one sitting: three Rust files, no networking, nothing but Apple's own frameworks.
+Flipping sleep needs root, so here is exactly what Lidless does with it.
 
-Flipping sleep needs root. Your one password prompt runs `pmset disablesleep` and installs this, and only this, at `/etc/sudoers.d/lidless`:
+**Your password never touches Lidless.** macOS draws the prompt and checks it. Lidless hears "yes" or "no" and nothing more. There is no code that reads, stores or sends it.
+
+**It gets two commands, forever.** That one prompt installs this, and only this, at `/etc/sudoers.d/lidless`:
 
 ```
 you ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
-Two exact commands, no password, nothing else. It's checked with `visudo` before it goes live. On a work Mac, your security tooling may notice the new file.
+Sleep on, sleep off, no password. Anything else, including those commands with one extra argument, is refused. The rule is checked with `visudo` before it goes live, the file is root-owned and read-only, and `pmset` itself is protected by macOS, so it can't be swapped for something nastier.
+
+**Worst case:** another program running as you can toggle sleep. Annoying, not a way to root.
+
+**It doesn't phone home.** No networking code. The app links only Apple's frameworks, runs every system tool by its full path, and is signed with the hardened runtime.
+
+**Small supply chain.** Twelve crates, all pinned by checksum, clean under `cargo audit`.
+
+The honest limits:
+
+- You build and sign this yourself, so there's no Apple-verified identity behind it. Malware already running as you could swap the app for a fake. True of most apps you can modify.
+- An awake Mac is a softer target than a sleeping one. Lock it before you leave it.
+- On a work Mac, your security tooling may notice the new sudoers file.
+
+## Under the hood
+
+Small enough to read in one sitting: three Rust files.
 
 The fade uses Apple's private DisplayServices framework, because macOS has no public brightness API. If an update removes it, the fade stops and everything else carries on.
 
