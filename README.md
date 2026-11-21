@@ -21,7 +21,7 @@ No download. You build your own, which takes about a minute. You need [Rust](htt
 
 ```
 git clone https://github.com/jellis206/lidless && cd lidless
-scripts/bundle.sh --install
+scripts/bundle.sh
 ```
 
 That drops `Lidless.app` into `/Applications` and opens it. The first click asks for your Mac password, once. Every click after that is instant.
@@ -84,8 +84,9 @@ A Rust port of [Lidless](https://github.com/alexiscodingbits/lidless) by Alex Mc
 ## Hack on it
 
 ```
-cargo test               # the logic
-cargo test -- --ignored  # the hardware: reads the lid, dips your screen for a blink
+cargo test                # the logic
+cargo test -- --ignored   # the hardware: reads the lid, dips your screen for a blink
+scripts/bundle.sh /tmp/x  # build into another folder; leaves your installed copy alone
 ```
 
 ## Uninstall

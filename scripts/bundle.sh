@@ -1,11 +1,13 @@
 #!/bin/zsh
-# Build dist/Lidless.app for this Mac's architecture, signed ad hoc (local use only).
-# Usage: scripts/bundle.sh [--install]
+# Build Lidless.app for this Mac, signed ad hoc (local use only).
+#   scripts/bundle.sh        install into /Applications and (re)start it
+#   scripts/bundle.sh DIR    put the app in DIR instead and leave it alone, for testing
 set -euo pipefail
 cd "${0:A:h}/.."
+DEST="${1:-/Applications}"
 VER=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
-APP="dist/Lidless.app"
-rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+APP="target/Lidless.app"
+rm -rf "$APP" && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cargo build --release --locked
 cp target/release/lidless "$APP/Contents/MacOS/Lidless"
@@ -31,16 +33,19 @@ cat > "$APP/Contents/Info.plist" <<PL
 <key>CFBundleVersion</key><string>$VER</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>LSUIElement</key><true/>
-<key>NSHumanReadableCopyright</key><string>© 2026 Alex McConnell. MIT licence.</string>
+<key>NSHumanReadableCopyright</key><string>© 2026 Alex McConnell, John Ellis. MIT licence.</string>
 </dict></plist>
 PL
 
 codesign --force --options runtime --sign - "$APP"
 codesign --verify --strict "$APP"
-echo "Built $APP ($VER)"
 
-if [[ "${1:-}" == "--install" ]]; then
+mkdir -p "$DEST"
+if [[ $# -eq 0 ]]; then
   pkill -x Lidless || true
-  rm -rf /Applications/Lidless.app && cp -R "$APP" /Applications/
-  open /Applications/Lidless.app
+fi
+rm -rf "$DEST/Lidless.app" && cp -R "$APP" "$DEST/"
+echo "Lidless $VER -> $DEST/Lidless.app"
+if [[ $# -eq 0 ]]; then
+  open "$DEST/Lidless.app"
 fi
