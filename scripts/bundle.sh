@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "${0:A:h}/.."
 DEST="${1:-/Applications}"
-VER=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+VER=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
 APP="target/Lidless.app"
 rm -rf "$APP" && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 

@@ -17,7 +17,7 @@ Left-click to flip. Right-click for the menu.
 
 ## Get it
 
-No download. You build your own, which takes about a minute. You need [Rust](https://rustup.rs) and `jq`.
+No download. You build your own, which takes about a minute. You need [Rust](https://rustup.rs).
 
 ```
 git clone https://github.com/jellis206/lidless && cd lidless
