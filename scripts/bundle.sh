@@ -41,6 +41,11 @@ codesign --force --options runtime --sign - "$APP"
 codesign --verify --strict "$APP"
 
 mkdir -p "$DEST"
+# Nothing changed: leave the running app alone rather than restart it for no reason.
+if diff -rq "$APP" "$DEST/Lidless.app" >/dev/null 2>&1; then
+  echo "Lidless $VER already up to date in $DEST"
+  exit 0
+fi
 if [[ $# -eq 0 ]]; then
   pkill -x Lidless || true
 fi
