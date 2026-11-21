@@ -17,7 +17,7 @@ Left-click to flip. Right-click for the menu.
 
 ## Get it
 
-No download. You build your own, which takes about a minute. You need [Rust](https://rustup.rs).
+No download. You build your own, which takes about a minute. You need [Rust](https://rustup.rs) and Xcode's command line tools (`xcode-select --install`, if you somehow don't have them).
 
 ```
 git clone https://github.com/jellis206/lidless && cd lidless
