@@ -1,101 +1,99 @@
-# Lidless (Rust)
+<p align="center"><img src="assets/icon-1024.png" width="150" alt="Lidless icon"></p>
 
-A switch in your Mac's menu bar. Click it and your Mac stays awake, even with the lid shut. Click it again and it sleeps like normal. macOS 13 or later.
+<h1 align="center">Lidless</h1>
 
-This is a Rust port of [alexiscodingbits/lidless](https://github.com/alexiscodingbits/lidless) by Alex McConnell (MIT), with some changes of its own, listed [below](#whats-different-from-the-original). The app icon is his.
+<p align="center"><b>Shut the lid. Keep the Mac running.</b></p>
 
-## Install
+One eye in your menu bar. Click it open and your Mac stops sleeping, lid shut and all. Click it closed and it's a normal Mac again.
 
-There is no download. You build it on the Mac you'll use it on, which needs [Rust](https://rustup.rs) and `jq`:
+Your build keeps building. Your download keeps downloading. Your agents keep cooking. You go get lunch.
+
+| | Mode | Close the lid and... |
+|---|---|---|
+| 👁 | **Awake** | it keeps running |
+| 😌 | **Normal** | it sleeps |
+
+Left-click to flip. Right-click for the menu.
+
+## Get it
+
+No download. You build your own, which takes about a minute. You need [Rust](https://rustup.rs) and `jq`.
 
 ```
-scripts/bundle.sh --install  # builds, copies Lidless.app to /Applications and opens it
-scripts/bundle.sh            # builds dist/Lidless.app only
+git clone https://github.com/jellis206/lidless && cd lidless
+scripts/bundle.sh --install
 ```
 
-The build is signed for local use and is not notarised, so a copy sent to another Mac won't open. Each person builds their own.
+That drops `Lidless.app` into `/Applications` and opens it. The first click asks for your Mac password, once. Every click after that is instant.
 
-## Using it
+The build is signed for your Mac only, so don't AirDrop the app to a friend. Send them this repo.
 
-| Menu bar | What it means |
-|---|---|
-| Closed eye | Normal. Your Mac sleeps when it idles or you close the lid. |
-| Open eye | Awake. Your Mac keeps running, even with the lid shut. |
+## What you get
 
-Left-click switches. Right-click opens the menu, which states the current mode in words and holds the options.
+- **Lid-shut awake.** `caffeinate` only stops idle sleep; close the lid and you're asleep anyway. Lidless blocks both, so you can retire the `caffeinate` tab.
+- **A screen that fades out.** Shut the lid and the display eases down to black. Open it and it eases back to where you had it.
+- **A fuse.** Mac running hot, or on battery at 20% or less? Lidless switches itself off and tells you, because a laptop cooking in a backpack is a bad day. You can disable this in the menu. Don't.
+- **No mess on quit.** Quit and normal sleep comes back. So does your brightness.
+- **Open at Login**, if you ask for it. It doesn't help itself.
 
-The first click shows the macOS admin password prompt, once. After that every click is instant.
+## It still locks
 
-## What it does
+Lidless changes when your Mac *sleeps*, not when it *locks*.
 
-- **Keeps the Mac awake with the lid shut.** `caffeinate` and most keep-awake apps only stop idle sleep; closing the lid still sleeps the Mac. Lidless flips `pmset disablesleep`, which blocks both. With the eye open you don't need `caffeinate` as well.
-- **Fades the screen when the lid shuts.** While awake, shutting the lid fades the built-in screen to black over about a second, and opening it fades back to the brightness it had. External monitors are not touched.
-- **Switches itself off when it isn't safe.** If the Mac gets hot, or is on battery at 20% or less, Lidless goes back to normal sleep and tells you. It won't switch on in those states either. You can turn this off in the menu under **Auto-off When Hot or Below 20% Battery**, but you probably shouldn't: a Mac running in a closed bag gets hot and drains its battery.
-- **Restores everything on quit.** Quitting puts normal sleep back, and puts the screen brightness back if the lid is shut.
-- **Open at Login**, from the menu. It is off until you turn it on.
+- Walk away or close the lid: the screen goes off after your usual display-sleep time, and the Mac locks like it always does.
+- In a hurry: lock it yourself with `⌃⌘Q` and it locks now.
+- Either way, everything keeps running behind the lock screen.
 
-## Your Mac still locks
+Locked and still working. That's the whole point.
 
-Lidless changes when your Mac sleeps, not when it locks. With the eye open:
+One gap: between closing the lid and the screen turning off, the Mac is awake and not yet locked. Leaving it somewhere sketchy? Lock first, then close.
 
-- Walk away, or close the lid, and the screen turns off after your usual display-sleep time. The Mac then locks the way it normally does when the display turns off (System Settings → Lock Screen → *Require password after screen saver begins or display is turned off*).
-- Lock it yourself (Control-Command-Q, or Apple menu → Lock Screen) and it locks straight away.
-- Either way, everything keeps running behind the lock screen: builds, downloads, scripts, network connections.
+## Under the hood
 
-So the Mac stays secure while it keeps working. The one gap is the time between closing the lid and the display turning off, when the Mac is awake and not yet locked. If that matters where you are, lock it before you close it.
+Small enough to read in one sitting: three Rust files, no networking, nothing but Apple's own frameworks.
 
-## How the switch works
-
-Changing `pmset disablesleep` needs root. The first click uses the admin prompt to flip the setting and install one sudoers rule at `/etc/sudoers.d/lidless`:
+Flipping sleep needs root. Your one password prompt runs `pmset disablesleep` and installs this, and only this, at `/etc/sudoers.d/lidless`:
 
 ```
 you ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
-That rule lets your user run those two exact commands without a password, and nothing else. It is checked with `visudo` before it goes live. On a managed Mac, a new file in `/etc/sudoers.d` may show up in endpoint monitoring.
+Two exact commands, no password, nothing else. It's checked with `visudo` before it goes live. On a work Mac, your security tooling may notice the new file.
 
-There is no networking code. The binary links only Apple's own frameworks.
+The fade uses Apple's private DisplayServices framework, because macOS has no public brightness API. If an update removes it, the fade stops and everything else carries on.
 
-macOS has no public API for screen brightness, so the fade uses Apple's private DisplayServices framework, loaded at runtime. If a macOS update removes it, the fade stops working and nothing else does.
+## Versus the original
 
-## What's different from the original
+This is a Rust port of [Alex McConnell's Lidless](https://github.com/alexiscodingbits/lidless). His idea, his icon, his MIT licence. What's different here:
 
-Added:
+| | |
+|---|---|
+| **New** | Screen fade on lid close and open |
+| **New** | Eye icon: open for awake, closed for normal (was a moon with a slash) |
+| **New** | Quitting restores normal sleep (the original left your Mac stuck awake) |
+| **New** | Tests for the parsing, the sudoers rule and the fade |
+| **Changed** | Rust instead of Swift |
+| **Changed** | Open at Login is opt-in, not automatic |
+| **Changed** | Build it yourself; no notarised download |
+| **Gone** | The About menu item |
 
-- The screen fade on lid close and open.
-- An eye for the menu-bar icon, open when awake and closed when normal, instead of a moon with a slash through it.
-- Quitting restores normal sleep. In the original, quitting while awake left the Mac unable to sleep with no safety cutoff running.
-- Unit tests for the `pmset` parsing, the sudoers rule and the fade.
+## Known quirks
 
-Changed:
+- Hovering the icon shows no tooltip on macOS 27. Right-click instead; the menu says which mode you're in.
 
-- Written in Rust rather than Swift.
-- It does not add itself to Open at Login on first launch. You opt in from the menu.
-- Battery level is read from `pmset -g batt` rather than IOKit.
-- Built and signed locally, with no notarised download.
-
-Removed:
-
-- The About menu item.
-- Cleanup of the older `sleeptoggle` sudoers rule from before the original was renamed.
-
-## Known issues
-
-- The hover tooltip on the menu-bar icon doesn't appear on macOS 27. Right-click to read the current mode.
-
-## Develop
+## Hack on it
 
 ```
-cargo test               # parsing, sudoers-rule and fade tests
-cargo test -- --ignored  # hardware check: reads the lid and dips the screen briefly
+cargo test               # the logic
+cargo test -- --ignored  # the hardware: reads the lid, dips your screen for a blink
 ```
 
 ## Uninstall
 
-1. Right-click the icon and choose **Ask for Password Again…**. This deletes the sudoers rule.
-2. Quit Lidless and delete the app.
+1. Right-click → **Ask for Password Again…** (removes the sudoers rule)
+2. Quit, then bin the app
 
-By hand: `sudo rm /etc/sudoers.d/lidless && sudo pmset -a disablesleep 0`.
+Or by hand: `sudo rm /etc/sudoers.d/lidless && sudo pmset -a disablesleep 0`
 
 ## Licence
 
