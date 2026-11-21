@@ -59,7 +59,8 @@ fn valid_user(user: &str) -> bool {
 }
 
 /// The root script for the first switch: flip the setting, then install the sudoers rule
-/// atomically (dot-prefixed temp file is ignored by sudo, checked by visudo, then renamed).
+/// atomically (dot-prefixed temp file is ignored by sudo, checked by visudo, then renamed, and
+/// removed if any of that fails).
 fn install_script(user: &str, on: bool) -> String {
     let v = if on { "1" } else { "0" };
     if !valid_user(user) {
@@ -71,10 +72,10 @@ fn install_script(user: &str, on: bool) -> String {
     format!(
         "{PMSET} -a disablesleep {v} && \
          T=$(/usr/bin/mktemp /etc/sudoers.d/.lidless.XXXXXX) && \
-         printf '%s\\n' '{rule}' > \"$T\" && \
+         {{ printf '%s\\n' '{rule}' > \"$T\" && \
          /usr/sbin/visudo -cf \"$T\" >/dev/null && \
          /bin/chmod 440 \"$T\" && /usr/sbin/chown root:wheel \"$T\" && \
-         /bin/mv -f \"$T\" {SUDOERS_PATH}"
+         /bin/mv -f \"$T\" {SUDOERS_PATH} || {{ /bin/rm -f \"$T\"; false; }}; }}"
     )
 }
 
@@ -148,6 +149,15 @@ mod tests {
         }
     }
 
+    /// `sh -n` parses without running anything, so this is safe outside root.
+    #[test]
+    fn install_script_is_valid_shell() {
+        for user in ["jay", "not a user"] {
+            let checked = Command::new("/bin/sh").args(["-n", "-c", &install_script(user, true)]).status();
+            assert!(checked.unwrap().success(), "{user:?}");
+        }
+    }
+
     #[test]
     fn rule_allows_exactly_two_commands() {
         let script = install_script("jay", false);
@@ -155,6 +165,9 @@ mod tests {
         assert!(script.contains(
             "'jay ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1'"
         ));
-        assert!(script.ends_with("/bin/mv -f \"$T\" /etc/sudoers.d/lidless"));
+        // A rule that fails any step is deleted, never left behind or half-installed.
+        assert!(script.ends_with(
+            "/bin/mv -f \"$T\" /etc/sudoers.d/lidless || { /bin/rm -f \"$T\"; false; }; }"
+        ));
     }
 }
