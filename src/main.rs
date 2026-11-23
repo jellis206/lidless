@@ -30,8 +30,19 @@ use objc2_user_notifications::{
 /// Stored inverted so the safety cutoff is on until someone turns it off.
 const AUTO_OFF_DISABLED: &str = "autoOffDisabled";
 
+const LOCK_ON_LID_SHUT: &str = "lockOnLidShut";
+
+/// A stored on/off preference. Unset reads as off.
+fn preference(key: &str) -> bool {
+    NSUserDefaults::standardUserDefaults().boolForKey(&NSString::from_str(key))
+}
+
+fn flip_preference(key: &str) {
+    NSUserDefaults::standardUserDefaults().setBool_forKey(!preference(key), &NSString::from_str(key));
+}
+
 fn auto_off() -> bool {
-    !NSUserDefaults::standardUserDefaults().boolForKey(&NSString::from_str(AUTO_OFF_DISABLED))
+    !preference(AUTO_OFF_DISABLED)
 }
 
 fn opens_at_login() -> bool {
@@ -98,6 +109,8 @@ struct Ivars {
     dimmer: RefCell<lid::Dimmer>,
     /// True while the fast fade timer is running.
     fading: Cell<bool>,
+    /// Whether the last lid poll found it shut while staying awake.
+    shut: Cell<bool>,
 }
 
 impl Ivars {
@@ -161,6 +174,11 @@ define_class!(
         /// Slow poll for the lid. Hands over to the fast timer for the length of a fade.
         #[unsafe(method(lidTick:))]
         fn lid_tick(&self, _: Option<&AnyObject>) {
+            let shut = self.shut_while_awake();
+            let was_shut = self.ivars().shut.replace(shut);
+            if shut && !was_shut && preference(LOCK_ON_LID_SHUT) {
+                lid::lock_screen();
+            }
             if !self.ivars().fading.get() && self.fade_step() {
                 self.ivars().fading.set(true);
                 self.every(1.0 / 30.0, sel!(fadeTick:));
@@ -192,8 +210,12 @@ define_class!(
 
         #[unsafe(method(toggleAutoOff:))]
         fn toggle_auto_off(&self, _: Option<&AnyObject>) {
-            NSUserDefaults::standardUserDefaults()
-                .setBool_forKey(auto_off(), &NSString::from_str(AUTO_OFF_DISABLED));
+            flip_preference(AUTO_OFF_DISABLED);
+        }
+
+        #[unsafe(method(toggleLockOnLidShut:))]
+        fn toggle_lock_on_lid_shut(&self, _: Option<&AnyObject>) {
+            flip_preference(LOCK_ON_LID_SHUT);
         }
 
         #[unsafe(method(toggleLogin:))]
@@ -224,6 +246,7 @@ impl App {
         let this = Self::alloc(mtm).set_ivars(Ivars { item: OnceCell::new(), awake: Cell::new(None),
             dimmer: RefCell::default(),
             fading: Cell::new(false),
+            shut: Cell::new(false),
         });
         unsafe { msg_send![super(this), init] }
     }
@@ -236,11 +259,15 @@ impl App {
         }
     }
 
+    /// The only time the lid matters: in normal mode a shut lid just puts the Mac to sleep.
+    fn shut_while_awake(&self) -> bool {
+        self.ivars().awake() && lid::closed() == Some(true)
+    }
+
     /// Moves the screen one step towards black (lid shut while staying awake) or back towards
     /// its remembered brightness. Returns false once it has arrived.
     fn fade_step(&self) -> bool {
-        let closed = self.ivars().awake() && lid::closed() == Some(true);
-        let level = self.ivars().dimmer.borrow_mut().step(closed, lid::brightness);
+        let level = self.ivars().dimmer.borrow_mut().step(self.shut_while_awake(), lid::brightness);
         level.inspect(|&level| lid::set_brightness(level)).is_some()
     }
 
@@ -311,6 +338,10 @@ impl App {
         menu.addItem(&NSMenuItem::separatorItem(mtm));
         let cutoff = format!("Auto-off When Hot or Below {}% Battery", power::LOW_BATTERY);
         self.add_item(&menu, &cutoff, Some(sel!(toggleAutoOff:)), "").setState(on_off(auto_off()));
+        if lid::can_lock() {
+            self.add_item(&menu, "Lock Screen When Lid Shuts", Some(sel!(toggleLockOnLidShut:)), "")
+                .setState(on_off(preference(LOCK_ON_LID_SHUT)));
+        }
         self.add_item(&menu, "Open at Login", Some(sel!(toggleLogin:)), "")
             .setState(on_off(opens_at_login()));
         if power::password_free() {

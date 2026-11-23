@@ -32,6 +32,7 @@ The build is signed for your Mac only, so don't AirDrop the app to a friend. Sen
 
 - **Lid-shut awake.** `caffeinate` only stops idle sleep; close the lid and you're asleep anyway. Lidless blocks both, so you can retire the `caffeinate` tab.
 - **A screen that fades out.** Shut the lid and the display eases down to black. Open it and it eases back to where you had it.
+- **Lock on lid shut.** Turn on **Lock Screen When Lid Shuts** in the menu and closing the lid locks the Mac on the spot. Still awake, still working, just locked.
 - **A fuse.** Mac running hot, or on battery at 20% or less? Lidless switches itself off and tells you, because a laptop cooking in a backpack is a bad day. You can disable this in the menu. Don't.
 - **No mess on quit.** Quit and normal sleep comes back. So does your brightness.
 - **Open at Login**, if you ask for it. It doesn't help itself.
@@ -46,7 +47,7 @@ Lidless changes when your Mac *sleeps*, not when it *locks*.
 
 Locked and still working. That's the whole point.
 
-One gap: between closing the lid and the screen turning off, the Mac is awake and not yet locked. Leaving it somewhere sketchy? Lock first, then close.
+One gap: between closing the lid and the screen turning off, the Mac is awake and not yet locked. Close it with **Lock Screen When Lid Shuts** turned on in the menu and the gap is gone.
 
 ## Security
 
@@ -71,14 +72,14 @@ Sleep on, sleep off, no password. Anything else, including those commands with o
 The honest limits:
 
 - You build and sign this yourself, so there's no Apple-verified identity behind it. Malware already running as you could swap the app for a fake. True of most apps you can modify.
-- An awake Mac is a softer target than a sleeping one. Lock it before you leave it.
+- An awake Mac is a softer target than a sleeping one. Turn on **Lock Screen When Lid Shuts**, or lock it before you leave it.
 - On a work Mac, your security tooling may notice the new sudoers file.
 
 ## Under the hood
 
 Small enough to read in one sitting: three Rust files.
 
-The fade uses Apple's private DisplayServices framework, because macOS has no public brightness API. If an update removes it, the fade stops and everything else carries on.
+The fade and the lock use two private Apple calls (DisplayServices for brightness, `SACLockScreenImmediate` for the lock), because macOS has no public API for either. If an update removes the brightness one, the fade stops and everything else carries on. If it removes the lock one, the lock setting disappears from the menu instead of pretending to work.
 
 ## Versus the original
 
@@ -87,6 +88,7 @@ A Rust port of [Lidless](https://github.com/alexiscodingbits/lidless) by Alex Mc
 | | |
 |---|---|
 | **New** | Screen fade on lid close and open |
+| **New** | Optional lock the moment the lid shuts |
 | **New** | Eye icon: open for awake, closed for normal (was a moon with a slash) |
 | **New** | Quitting restores normal sleep (the original left your Mac stuck awake) |
 | **New** | Tests for the parsing, the sudoers rule and the fade |

@@ -53,25 +53,53 @@ pub fn closed() -> Option<bool> {
 type GetBrightness = unsafe extern "C" fn(display: u32, level: *mut f32) -> i32;
 type SetBrightness = unsafe extern "C" fn(display: u32, level: f32) -> i32;
 
+/// Looks up a function in a private system framework, or None if this macOS no longer has it.
+fn symbol(framework: &CStr, name: &CStr) -> Option<*mut c_void> {
+    const RTLD_LAZY: c_int = 1;
+    unsafe {
+        let handle = dlopen(framework.as_ptr(), RTLD_LAZY);
+        if handle.is_null() {
+            return None;
+        }
+        let found = dlsym(handle, name.as_ptr());
+        (!found.is_null()).then_some(found)
+    }
+}
+
 fn display_services() -> Option<(GetBrightness, SetBrightness)> {
     static SYMBOLS: OnceLock<Option<(GetBrightness, SetBrightness)>> = OnceLock::new();
     *SYMBOLS.get_or_init(|| unsafe {
         const PATH: &CStr = c"/System/Library/PrivateFrameworks/DisplayServices.framework/DisplayServices";
-        const RTLD_LAZY: c_int = 1;
-        let handle = dlopen(PATH.as_ptr(), RTLD_LAZY);
-        if handle.is_null() {
-            return None;
-        }
-        let get = dlsym(handle, c"DisplayServicesGetBrightness".as_ptr());
-        let set = dlsym(handle, c"DisplayServicesSetBrightness".as_ptr());
-        if get.is_null() || set.is_null() {
-            return None;
-        }
+        let get = symbol(PATH, c"DisplayServicesGetBrightness")?;
+        let set = symbol(PATH, c"DisplayServicesSetBrightness")?;
         Some((
             std::mem::transmute::<*mut c_void, GetBrightness>(get),
             std::mem::transmute::<*mut c_void, SetBrightness>(set),
         ))
     })
+}
+
+type LockScreen = unsafe extern "C" fn() -> i32;
+
+/// macOS has no public call to lock the screen either; this is the one the Lock Screen menu
+/// item uses.
+fn lock_function() -> Option<LockScreen> {
+    const PATH: &CStr = c"/System/Library/PrivateFrameworks/login.framework/Versions/Current/login";
+    let lock = symbol(PATH, c"SACLockScreenImmediate")?;
+    Some(unsafe { std::mem::transmute::<*mut c_void, LockScreen>(lock) })
+}
+
+/// Whether this macOS can lock on request. The setting is only offered when it can, so it
+/// never claims a lock that would not happen.
+pub fn can_lock() -> bool {
+    lock_function().is_some()
+}
+
+/// Locks the screen now. Everything keeps running behind the lock screen.
+pub fn lock_screen() {
+    if let Some(lock) = lock_function() {
+        unsafe { lock() };
+    }
 }
 
 /// The laptop's own panel. External monitors are never touched.
@@ -206,6 +234,12 @@ mod tests {
         set_brightness(before);
         assert!((seen - dipped).abs() < 0.02, "asked for {dipped}, screen reports {seen}");
         assert!((brightness().unwrap() - before).abs() < 0.02, "brightness was restored");
+    }
+
+    /// Only checks the private call still exists; calling it would lock the screen.
+    #[test]
+    fn this_macos_can_lock_the_screen() {
+        assert!(can_lock());
     }
 
     #[test]
